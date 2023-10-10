@@ -1,0 +1,146 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>SignalR Simple Chat</title>
+    <style type="text/css">
+        body {
+            background-color: #2f4f4f;
+        }
+
+        .container {
+            background-color: #70a9a9;
+            border: thick solid #4cadad;
+            padding: 20px;
+            margin: 20px;
+            width: 700px;
+        }
+
+        #message {
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #f0f0f0;
+            color: #333;
+            /*box-shadow: 5px 5px 10px #d0d0d0, -5px -5px 10px #ffffff;*/
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        #sendmessage {
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+
+            #sendmessage:hover {
+                background-color: #0056b3;
+            }
+
+        #shareFile {
+            background-color: #28a745;
+            color: #fff;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            padding: 10px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+
+        #fileInput {
+            margin: 10px 0px;
+            padding: 10px;
+            color: white;
+        }
+
+        #shareFile:hover {
+            background-color: #218838;
+        }
+
+        #displayname {
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            background-color: #f0f0f0;
+            color: #333;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <input type="text" id="message" />
+        <button id="sendMessageOrShareFile">Send</button>
+        <input type="file" id="fileInput" />
+        <input type="hidden" id="displayname" />
+        <ul id="discussion"></ul>
+    </div>
+
+
+    <script src="Scripts/jquery-3.4.1.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.4.3.min.js"></script>
+    <script src="signalr/hubs"></script>
+
+    <script type="text/javascript">
+        $(function () {
+            var chat = $.connection.chatHub;
+
+            chat.client.broadcastMessage = function (name, message) {
+                var encodedName = $('<div />').text(name).html();
+                var encodedMsg = $('<div />').text(message).html();
+                $('#discussion').append('<li><strong>' + encodedName
+                    + '</strong>:&nbsp;&nbsp;' + encodedMsg + '</li>');
+            };
+
+            chat.client.broadcastFile = function (name, fileName, fileData) {
+                var encodedName = $('<div />').text(name).html();
+
+                if (isImageFile(fileName)) {
+                    var imageTag = '<img src="' + fileData + '" alt="' + fileName + '" style="max-width: 250px; max-height: 250px;" />';
+                    $('#discussion').append('<li><strong>' + encodedName + '</strong>:&nbsp;&nbsp;' + imageTag + '</li>');
+                } else {
+                    var downloadLink = '<a href="' + fileData + '" download="' + fileName + '">Download File</a>';
+                    $('#discussion').append('<li><strong>' + encodedName + '</strong>:&nbsp;&nbsp;' + downloadLink + '</li>');
+                }
+            };
+
+            function isImageFile(fileName) {
+                var imageExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+                var fileExtension = fileName.split('.').pop().toLowerCase();
+                return imageExtensions.indexOf(fileExtension) !== -1;
+            }
+
+
+            $('#displayname').val(prompt('Enter your name:', ''));
+
+            $('#sendMessageOrShareFile').click(function () {
+                var message = $('#message').val();
+                var fileInput = document.getElementById('fileInput');
+                var file = fileInput.files[0];
+
+                if (message) {
+                    chat.server.send($('#displayname').val(), message);
+                    $('#message').val('').focus();
+                } if (file) {
+                    var reader = new FileReader();
+                    reader.onload = function (event) {
+                        var fileData = event.target.result;
+                        chat.server.shareFile($('#displayname').val(), file.name, fileData);
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            $.connection.hub.start().done(function () {
+                $('#message').focus();
+            });
+        });
+    </script>
+</body>
+</html>
